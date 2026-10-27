@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\AuditLog;
 use App\Models\DiningReservation;
 use App\Models\MeetingReservation;
 use App\Models\PmrRequest;
@@ -9,6 +10,7 @@ use App\Models\Reservation;
 use App\Models\ReservationRoom;
 use App\Models\Room;
 use App\Models\RoomType;
+use App\Models\RoomWebAllotment;
 use App\Services\BillingService;
 use App\Services\FrontOfficeService;
 use App\Services\SeasonService;
@@ -43,6 +45,13 @@ class RoomControlDashboard extends Component
     public bool $plotMarkConfirmed = true;
     public bool $plotMarkPaid = false;
     public bool $plotDirectCheckIn = false;
+
+    // Setting Order via Web Modal State
+    public bool $showWebOrderModal = false;
+    public string $webOrderStartDate = '';
+    public string $webOrderEndDate = '';
+    public array $selectedWebRooms = [];
+    public array $roomTypeWebStatus = [];
 
     public ?int $selectedRoomId = null;
     public ?int $selectedReservationId = null;
@@ -368,6 +377,201 @@ class RoomControlDashboard extends Component
         } catch (\Exception $e) {
             $this->addError('plot', $e->getMessage());
         }
+    }
+
+    // --- FITUR SETTING ORDER VIA WEB (ALOKASI KAMAR FISIK PENJUALAN WEBSITE) ---
+    public function openWebOrderModal(): void
+    {
+        $this->authorize('room_status.edit');
+        $this->resetErrorBag();
+        $this->webOrderStartDate = now()->toDateString();
+        $this->webOrderEndDate = now()->addDay()->toDateString();
+        $this->loadWebOrderData();
+        $this->showWebOrderModal = true;
+    }
+
+    public function closeWebOrderModal(): void
+    {
+        $this->showWebOrderModal = false;
+    }
+
+    public function updatedWebOrderStartDate(): void
+    {
+        if ($this->webOrderStartDate && $this->webOrderEndDate && $this->webOrderStartDate >= $this->webOrderEndDate) {
+            $this->webOrderEndDate = Carbon::parse($this->webOrderStartDate)->addDay()->toDateString();
+        }
+        $this->loadWebOrderData();
+    }
+
+    public function updatedWebOrderEndDate(): void
+    {
+        if ($this->webOrderStartDate && $this->webOrderEndDate && $this->webOrderEndDate <= $this->webOrderStartDate) {
+            $this->webOrderStartDate = Carbon::parse($this->webOrderEndDate)->subDay()->toDateString();
+        }
+        $this->loadWebOrderData();
+    }
+
+    public function loadWebOrderData(): void
+    {
+        if (!$this->webOrderStartDate || !$this->webOrderEndDate) {
+            return;
+        }
+
+        // 1. Load room types active status
+        $this->roomTypeWebStatus = RoomType::pluck('is_active', 'id')->mapWithKeys(fn ($val, $k) => [(int) $k => (bool) $val])->toArray();
+
+        // 2. Load existing allotments for the start date
+        $anyRecordExists = RoomWebAllotment::whereDate('allotment_date', $this->webOrderStartDate)->exists();
+
+        if ($anyRecordExists) {
+            $this->selectedWebRooms = RoomWebAllotment::whereDate('allotment_date', $this->webOrderStartDate)
+                ->where('is_enabled', true)
+                ->pluck('room_id')
+                ->map(fn ($id) => (int) $id)
+                ->toArray();
+        } else {
+            // Default: select all active available rooms for the dates
+            $this->selectedWebRooms = Room::where('operational_status', 'active')
+                ->get()
+                ->filter(fn (Room $r) => $r->isAvailable($this->webOrderStartDate, $this->webOrderEndDate))
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->toArray();
+        }
+    }
+
+    public function toggleAllRoomsForType(int $typeId, bool $select): void
+    {
+        $availableTypeRoomIds = Room::where('room_type_id', $typeId)
+            ->where('operational_status', 'active')
+            ->get()
+            ->filter(fn (Room $r) => $r->isAvailable($this->webOrderStartDate, $this->webOrderEndDate))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->toArray();
+
+        if ($select) {
+            $this->selectedWebRooms = array_values(array_unique(array_merge($this->selectedWebRooms, $availableTypeRoomIds)));
+        } else {
+            $this->selectedWebRooms = array_values(array_diff($this->selectedWebRooms, $availableTypeRoomIds));
+        }
+    }
+
+    public function saveWebOrderSettings(): void
+    {
+        $this->authorize('room_status.edit');
+        $this->validate([
+            'webOrderStartDate' => 'required|date',
+            'webOrderEndDate' => 'required|date|after:webOrderStartDate',
+        ]);
+
+        try {
+            DB::transaction(function () {
+                // 1. Update room type website active status
+                foreach ($this->roomTypeWebStatus as $typeId => $isActive) {
+                    RoomType::where('id', $typeId)->update(['is_active' => (bool) $isActive]);
+                }
+
+                // 2. Save physical room allotments per date in the range
+                $current = Carbon::parse($this->webOrderStartDate);
+                $end = Carbon::parse($this->webOrderEndDate);
+                $allRooms = Room::where('operational_status', 'active')->get();
+
+                while ($current->lt($end)) {
+                    $dateStr = $current->toDateString();
+                    $nextDayStr = Carbon::parse($dateStr)->addDay()->toDateString();
+
+                    foreach ($allRooms as $room) {
+                        $isBooked = !$room->isAvailable($dateStr, $nextDayStr);
+                        // If room is booked, force is_enabled to false
+                        $isEnabled = !$isBooked && in_array((int) $room->id, array_map('intval', $this->selectedWebRooms));
+
+                        $existing = RoomWebAllotment::whereDate('allotment_date', $dateStr)
+                            ->where('room_id', $room->id)
+                            ->first();
+
+                        if ($existing) {
+                            $existing->update([
+                                'is_enabled' => $isEnabled,
+                                'created_by' => auth()->id(),
+                            ]);
+                        } else {
+                            RoomWebAllotment::create([
+                                'allotment_date' => $dateStr,
+                                'room_id' => $room->id,
+                                'is_enabled' => $isEnabled,
+                                'created_by' => auth()->id(),
+                            ]);
+                        }
+                    }
+
+                    $current->addDay();
+                }
+
+                AuditLog::record(
+                    'update_web_order_allotment',
+                    null,
+                    null,
+                    [
+                        'start_date' => $this->webOrderStartDate,
+                        'end_date' => $this->webOrderEndDate,
+                        'selected_rooms' => $this->selectedWebRooms,
+                        'types_active' => $this->roomTypeWebStatus,
+                    ],
+                    "Perbarui alokasi kamar web rentang {$this->webOrderStartDate} s/d {$this->webOrderEndDate}"
+                );
+            });
+
+            $this->showWebOrderModal = false;
+            $this->refreshRooms();
+            session()->flash('message', 'Pengaturan kamar fisik untuk pemesanan website berhasil disimpan!');
+        } catch (\Exception $e) {
+            $this->addError('web_order', $e->getMessage());
+        }
+    }
+
+    public function getWebOrderRoomTypesProperty()
+    {
+        if (!$this->showWebOrderModal || !$this->webOrderStartDate || !$this->webOrderEndDate) {
+            return collect();
+        }
+
+        return RoomType::with(['rooms' => function ($q) {
+            $q->orderBy('room_number');
+        }])->get()->map(function ($type) {
+            $rooms = $type->rooms->map(function ($room) {
+                $isMaintenance = in_array($room->operational_status, ['maintenance', 'disabled']);
+                $isAvailable = $room->isAvailable($this->webOrderStartDate, $this->webOrderEndDate);
+                $isBooked = !$isAvailable && !$isMaintenance;
+
+                $bookedRes = null;
+                if ($isBooked) {
+                    $bookedRes = Reservation::whereHas('allocatedRooms', fn ($q) => $q->where('room_id', $room->id))
+                        ->whereNotIn('status', ['cancelled', 'expired'])
+                        ->where(function ($q) {
+                            $q->whereDate('check_in_date', '<', $this->webOrderEndDate)
+                              ->whereDate('check_out_date', '>', $this->webOrderStartDate);
+                        })
+                        ->with('customer')
+                        ->first();
+                }
+
+                return [
+                    'room' => $room,
+                    'isMaintenance' => $isMaintenance,
+                    'isBooked' => $isBooked,
+                    'bookedReservation' => $bookedRes,
+                    'canSelect' => !$isMaintenance && !$isBooked,
+                ];
+            });
+
+            return [
+                'type' => $type,
+                'rooms' => $rooms,
+                'availableCount' => $rooms->where('canSelect', true)->count(),
+                'selectedCount' => $rooms->where('canSelect', true)->filter(fn ($r) => in_array((int) $r['room']->id, array_map('intval', $this->selectedWebRooms)))->count(),
+            ];
+        });
     }
 
     public function render()

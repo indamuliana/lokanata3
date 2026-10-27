@@ -12,6 +12,7 @@ use App\Models\ReservationRoom;
 use App\Models\ReservationServiceItem;
 use App\Models\Room;
 use App\Models\RoomType;
+use App\Models\RoomWebAllotment;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -24,6 +25,8 @@ class ReservationService
      */
     public static function getAvailableRoomCount(RoomType $roomType, string $checkIn, string $checkOut, string $channel = 'all'): int
     {
+        $roomType = $roomType->fresh() ?: $roomType;
+
         $totalActiveRooms = $roomType->relationLoaded('rooms')
             ? $roomType->rooms->where('operational_status', 'active')->count()
             : $roomType->rooms()->where('operational_status', 'active')->count();
@@ -43,23 +46,77 @@ class ReservationService
         $physicalAvailable = max(0, $totalActiveRooms - $bookedRooms);
 
         if ($channel === 'website') {
-            $quota = $roomType->website_quota !== null ? (int) $roomType->website_quota : $totalActiveRooms;
-            if ($quota <= 0) {
+            if (!$roomType->is_active) {
                 return 0;
             }
 
-            $bookedWebsite = Reservation::where('room_type_id', $roomType->id)
-                ->whereNotIn('status', ['cancelled', 'expired'])
-                ->where('source', 'website')
-                ->where(function ($query) use ($checkInDate, $checkOutDate) {
-                    $query->whereDate('check_in_date', '<', $checkOutDate)
-                          ->whereDate('check_out_date', '>', $checkInDate);
-                })
-                ->count();
+            $current = Carbon::parse($checkInDate);
+            $end = Carbon::parse($checkOutDate);
+            $minNightlyAvailable = null;
 
-            $webQuotaRemaining = max(0, $quota - $bookedWebsite);
+            while ($current->lt($end)) {
+                $night = $current->toDateString();
+                $hasConfiguredAllotment = RoomWebAllotment::whereDate('allotment_date', $night)
+                    ->whereHas('room', fn ($q) => $q->where('room_type_id', $roomType->id))
+                    ->exists();
 
-            return min($physicalAvailable, $webQuotaRemaining);
+                if ($hasConfiguredAllotment) {
+                    $enabledRoomIds = RoomWebAllotment::whereDate('allotment_date', $night)
+                        ->whereHas('room', fn ($q) => $q->where('room_type_id', $roomType->id)->where('operational_status', 'active'))
+                        ->where('is_enabled', true)
+                        ->pluck('room_id')
+                        ->toArray();
+
+                    if (empty($enabledRoomIds)) {
+                        $nightlyAvailable = 0;
+                    } else {
+                        $bookedAllocatedCount = ReservationRoom::whereIn('room_id', $enabledRoomIds)
+                            ->whereHas('reservation', fn ($q) => $q->whereNotIn('status', ['cancelled', 'expired']))
+                            ->where(function ($q) use ($night) {
+                                $q->whereDate('assigned_from', '<=', $night)
+                                  ->whereDate('assigned_to', '>', $night);
+                            })
+                            ->count();
+
+                        $unallocatedWebBookings = Reservation::where('room_type_id', $roomType->id)
+                            ->whereNotIn('status', ['cancelled', 'expired'])
+                            ->where('source', 'website')
+                            ->doesntHave('allocatedRooms')
+                            ->where(function ($q) use ($night) {
+                                $q->whereDate('check_in_date', '<=', $night)
+                                  ->whereDate('check_out_date', '>', $night);
+                            })
+                            ->count();
+
+                        $freeAllotmentRooms = max(0, count($enabledRoomIds) - $bookedAllocatedCount);
+                        $nightlyAvailable = max(0, $freeAllotmentRooms - $unallocatedWebBookings);
+                    }
+                } else {
+                    $quota = $roomType->website_quota !== null ? (int) $roomType->website_quota : $totalActiveRooms;
+                    if ($quota <= 0) {
+                        $nightlyAvailable = 0;
+                    } else {
+                        $bookedWebsite = Reservation::where('room_type_id', $roomType->id)
+                            ->whereNotIn('status', ['cancelled', 'expired'])
+                            ->where('source', 'website')
+                            ->where(function ($query) use ($night) {
+                                $query->whereDate('check_in_date', '<=', $night)
+                                      ->whereDate('check_out_date', '>', $night);
+                            })
+                            ->count();
+
+                        $nightlyAvailable = max(0, $quota - $bookedWebsite);
+                    }
+                }
+
+                $minNightlyAvailable = ($minNightlyAvailable === null)
+                    ? $nightlyAvailable
+                    : min($minNightlyAvailable, $nightlyAvailable);
+
+                $current->addDay();
+            }
+
+            return min($physicalAvailable, $minNightlyAvailable ?? 0);
         }
 
         return $physicalAvailable;

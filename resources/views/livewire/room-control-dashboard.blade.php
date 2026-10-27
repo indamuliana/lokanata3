@@ -140,6 +140,12 @@
                 </div>
             </div>
             <div class="flex flex-wrap items-center gap-2">
+                @can('room_status.edit')
+                <button type="button" wire:click="openWebOrderModal" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-lg shadow-sm transition cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+                    <span>Setting Order via Web</span>
+                </button>
+                @endcan
                 @can('reservations.manage')
                 <a href="{{ route('reservations.index') }}" wire:navigate class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -1141,6 +1147,209 @@
                                 </button>
                             @endif
                         @endif
+                    </div>
+
+                </div>
+            </div>
+        @endif
+
+        <!-- MODAL SETTING ORDER VIA WEB (ALOKASI KAMAR FISIK PENJUALAN ONLINE) -->
+        @if($showWebOrderModal)
+            <div class="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
+                 style="animation: fadeIn 0.15s ease-out;"
+                 @click.self="$wire.closeWebOrderModal()">
+                <div class="bg-white rounded-3xl max-w-3xl w-full max-h-[92vh] overflow-hidden shadow-2xl border border-gray-100 flex flex-col my-auto">
+                    
+                    <!-- Header -->
+                    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+                        <div class="flex items-center gap-3">
+                            <span class="w-10 h-10 rounded-2xl bg-sky-50 text-sky-700 flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+                            </span>
+                            <div>
+                                <h3 class="text-base font-black text-gray-900 tracking-tight flex items-center gap-2">
+                                    Setting Penjualan Kamar via Website
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">Online Allotment</span>
+                                </h3>
+                                <p class="text-xs text-gray-500">Pilih tanggal dan tentukan kamar fisik mana saja yang dibuka untuk dipesan tamu online.</p>
+                            </div>
+                        </div>
+                        <button type="button" wire:click="closeWebOrderModal" class="p-2 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition cursor-pointer">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="p-5 sm:p-6 overflow-y-auto space-y-5">
+                        @error('web_order')
+                            <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-semibold">
+                                {{ $message }}
+                            </div>
+                        @enderror
+
+                        <!-- Baris Rentang Tanggal -->
+                        <div class="p-4 bg-gradient-to-r from-sky-50/70 to-indigo-50/50 rounded-2xl border border-sky-100/80 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs font-bold text-sky-950 uppercase tracking-wider flex items-center gap-1.5">
+                                    <svg class="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                    Pilih Rentang Tanggal Allotment
+                                </label>
+                                <span class="text-[11px] text-sky-700 font-medium">
+                                    @php
+                                        try {
+                                            $cIn = \Carbon\Carbon::parse($webOrderStartDate);
+                                            $cOut = \Carbon\Carbon::parse($webOrderEndDate);
+                                            $nDays = max(1, $cIn->diffInDays($cOut));
+                                            echo $nDays . ' Malam';
+                                        } catch (\Exception $e) {
+                                            echo '1 Malam';
+                                        }
+                                    @endphp
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                                <div>
+                                    <span class="block text-[11px] font-semibold text-gray-600 mb-1">Dari Tanggal (Check-In)</span>
+                                    <input type="date" wire:model.live="webOrderStartDate" class="w-full text-xs font-bold border-gray-300 rounded-xl shadow-2xs focus:ring-sky-500 focus:border-sky-500 bg-white">
+                                </div>
+                                <div>
+                                    <span class="block text-[11px] font-semibold text-gray-600 mb-1">Sampai Tanggal (Check-Out)</span>
+                                    <input type="date" wire:model.live="webOrderEndDate" min="{{ $webOrderStartDate }}" class="w-full text-xs font-bold border-gray-300 rounded-xl shadow-2xs focus:ring-sky-500 focus:border-sky-500 bg-white">
+                                </div>
+                            </div>
+                            <p class="text-[11px] text-sky-800 leading-tight pt-1">
+                                💡 Kamar fisik yang diceklis di bawah akan dialokasikan untuk reservasi web pada rentang tanggal tersebut. Kamar yang sudah terpesan otomatis terkunci (disabled).
+                            </p>
+                        </div>
+
+                        <!-- Daftar Kamar Fisik Per Tipe Kamar -->
+                        <div class="space-y-4">
+                            @foreach($this->webOrderRoomTypes as $group)
+                                @php
+                                    $t = $group['type'];
+                                    $typeColor = $t->color ?? '#059669';
+                                    $isActive = $roomTypeWebStatus[$t->id] ?? true;
+                                @endphp
+                                <div class="bg-white rounded-2xl border transition-all duration-150 overflow-hidden {{ $isActive ? 'border-gray-200 shadow-2xs' : 'border-gray-200/60 bg-gray-50/50 opacity-75' }}">
+                                    <!-- Header Tipe Kamar dengan Toggle Aktif di Web -->
+                                    <div class="p-3.5 bg-gray-50/80 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2.5">
+                                        <div class="flex items-center gap-2.5">
+                                            <span class="w-3.5 h-3.5 rounded-full shrink-0" style="background-color: {{ $typeColor }};"></span>
+                                            <div>
+                                                <div class="flex items-center gap-2">
+                                                    <span class="font-bold text-gray-900 text-sm">{{ $t->name }}</span>
+                                                    <span class="text-[10px] font-mono px-1.5 py-0.2 rounded font-bold text-white shadow-2xs" style="background-color: {{ $typeColor }};">{{ $t->code }}</span>
+                                                    <span class="text-xs font-bold text-emerald-700 font-mono">{{ rupiah($t->base_price) }}</span>
+                                                </div>
+                                                <div class="text-[11px] text-gray-500 flex items-center gap-2 mt-0.5">
+                                                    <span>{{ $group['selectedCount'] }} dari {{ $group['availableCount'] }} kamar bebas dibuka</span>
+                                                    @if(!$isActive)
+                                                        <span class="text-rose-600 font-bold">• Disembunyikan dari Web</span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Opsi Tipe Kamar: Toggle Aktif Web & Tombol Shortcut Centang -->
+                                        <div class="flex items-center gap-3">
+                                            <!-- Toggle Tipe Kamar Aktif di Web -->
+                                            <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                                                <input type="checkbox" wire:model.live="roomTypeWebStatus.{{ $t->id }}" class="rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+                                                <span class="text-xs font-semibold text-gray-700">Tampil di Web</span>
+                                            </label>
+
+                                            <!-- Tombol Shortcut Centang Bebas -->
+                                            @if($isActive && $group['availableCount'] > 0)
+                                                <div class="flex items-center gap-1 border-l border-gray-200 pl-3">
+                                                    <button type="button" wire:click="toggleAllRoomsForType({{ $t->id }}, true)" class="px-2 py-1 text-[11px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg transition cursor-pointer">
+                                                        Pilih Semua
+                                                    </button>
+                                                    <button type="button" wire:click="toggleAllRoomsForType({{ $t->id }}, false)" class="px-2 py-1 text-[11px] font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition cursor-pointer">
+                                                        Kosongkan
+                                                    </button>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+
+                                    <!-- Grid Kamar Fisik -->
+                                    <div class="p-3.5">
+                                        @if($group['rooms']->isEmpty())
+                                            <p class="text-xs text-gray-400 italic py-2 text-center">Belum ada kamar fisik untuk tipe ini.</p>
+                                        @else
+                                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                                                @foreach($group['rooms'] as $rmItem)
+                                                    @php
+                                                        $r = $rmItem['room'];
+                                                        $canSelect = $rmItem['canSelect'] && $isActive;
+                                                        $isSelected = in_array((int) $r->id, array_map('intval', $selectedWebRooms));
+                                                        $cleanLabel = match($r->cleaning_status) {
+                                                            'inspected' => 'Siap Pakai',
+                                                            'clean' => 'Bersih',
+                                                            'cleaning' => 'Cleaning',
+                                                            default => 'Kotor',
+                                                        };
+                                                    @endphp
+
+                                                    <label class="relative p-2.5 rounded-xl border transition flex flex-col justify-between gap-1.5 select-none
+                                                        {{ !$canSelect 
+                                                            ? 'bg-gray-100/80 border-gray-200 text-gray-400 opacity-60 cursor-not-allowed' 
+                                                            : ($isSelected 
+                                                                ? 'bg-sky-50/70 border-sky-400 ring-2 ring-sky-300 shadow-2xs cursor-pointer' 
+                                                                : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50/50 cursor-pointer') }}">
+                                                        
+                                                        <div class="flex items-start justify-between gap-1">
+                                                            <div class="flex items-center gap-2">
+                                                                <input type="checkbox" 
+                                                                       value="{{ $r->id }}" 
+                                                                       wire:model.live="selectedWebRooms"
+                                                                       {{ !$canSelect ? 'disabled' : '' }}
+                                                                       class="rounded border-gray-300 text-sky-600 focus:ring-sky-500 {{ !$canSelect ? 'opacity-40 cursor-not-allowed' : '' }}">
+                                                                <span class="font-mono font-black text-sm {{ $canSelect ? 'text-gray-900' : 'text-gray-500' }}">#{{ $r->room_number }}</span>
+                                                            </div>
+                                                            <span class="text-[10px] text-gray-500 font-medium">{{ $r->floor }}</span>
+                                                        </div>
+
+                                                        <!-- Status Kamar / Booking Info -->
+                                                        <div class="text-[10px]">
+                                                            @if($rmItem['isBooked'])
+                                                                <span class="inline-flex items-center gap-1 font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200" title="Kamar sudah dipesan oleh tamu">
+                                                                    🔒 Terpesan {{ $rmItem['bookedReservation'] ? '(' . $rmItem['bookedReservation']->customer->name . ')' : '' }}
+                                                                </span>
+                                                            @elseif($rmItem['isMaintenance'])
+                                                                <span class="inline-flex items-center gap-1 font-semibold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
+                                                                    🛠️ Maintenance
+                                                                </span>
+                                                            @else
+                                                                <span class="text-[10px] text-gray-500">
+                                                                    Status: <strong class="text-emerald-700">{{ $cleanLabel }}</strong>
+                                                                </span>
+                                                            @endif
+                                                        </div>
+                                                    </label>
+                                                @endforeach
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <!-- Footer Actions -->
+                    <div class="p-4 sm:p-5 border-t border-gray-100 flex items-center justify-between gap-3 bg-gray-50/50">
+                        <div class="text-xs text-gray-600">
+                            Total <strong class="text-sky-800">{{ count($selectedWebRooms) }} kamar fisik</strong> terpilih untuk penjualan online.
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" wire:click="closeWebOrderModal" class="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-900 rounded-xl hover:bg-gray-100 transition cursor-pointer">
+                                Batal
+                            </button>
+                            <button type="button" wire:click="saveWebOrderSettings" wire:loading.attr="disabled" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer">
+                                <span wire:loading.remove>Simpan Pengaturan Web</span>
+                                <span wire:loading>Menyimpan...</span>
+                            </button>
+                        </div>
                     </div>
 
                 </div>
