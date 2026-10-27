@@ -269,4 +269,38 @@ class DashboardRevampTest extends TestCase
             ->call('toggleSummary', 'checkin')
             ->assertSee('19:00 WIB');
     }
+
+    public function test_cleaning_status_distinguishes_clean_and_inspected_cards(): void
+    {
+        $room101 = Room::where('room_number', '101')->first();
+        $room102 = Room::where('room_number', '102')->first();
+
+        // 1. Room 101 as 'inspected' (Siap Pakai), Room 102 as 'clean' (Bersih menunggu inspeksi)
+        $room101->update(['cleaning_status' => 'inspected']);
+        $room102->update(['cleaning_status' => 'clean']);
+
+        $test = Livewire::actingAs($this->manager)
+            ->test(RoomControlDashboard::class)
+            ->assertOk();
+
+        // Inspected room: Siap Pakai badge and emerald styling
+        $test->assertSee('Siap Pakai');
+        $test->assertSee('bg-emerald-500');
+        $test->assertSee('bg-emerald-50/70');
+
+        // Clean room: Bersih badge and teal styling
+        $test->assertSee('Bersih');
+        $test->assertSee('bg-teal-500');
+        $test->assertSee('bg-teal-50/70');
+
+        // 2. Change room 101 to clean via Livewire modal
+        Livewire::actingAs($this->manager)
+            ->test(RoomControlDashboard::class)
+            ->call('openCleaningModal', $room101->id)
+            ->set('new_cleaning_status', 'clean')
+            ->call('saveCleaning')
+            ->assertHasNoErrors();
+
+        $this->assertEquals('clean', $room101->fresh()->cleaning_status);
+    }
 }

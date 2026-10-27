@@ -138,7 +138,15 @@
                                     <tr class="hover:bg-gray-50/70 transition">
                                         <td class="sticky left-0 z-10 bg-white py-2 px-3 font-semibold text-gray-900 border-r border-gray-200 whitespace-nowrap shadow-xs">
                                             <div class="flex items-center gap-1.5">
-                                                <span class="w-2.5 h-2.5 rounded-full {{ $room->operational_status === 'active' ? ($room->cleaning_status === 'clean' ? 'bg-emerald-500' : ($room->cleaning_status === 'dirty' ? 'bg-red-500' : 'bg-blue-500')) : 'bg-gray-400' }}"></span>
+                                                @php
+                                                    $cleanDot = match($room->cleaning_status) {
+                                                        'inspected' => 'bg-emerald-500',
+                                                        'clean' => 'bg-teal-500',
+                                                        'cleaning' => 'bg-blue-500',
+                                                        default => 'bg-amber-500',
+                                                    };
+                                                @endphp
+                                                <span class="w-2.5 h-2.5 rounded-full {{ $room->operational_status === 'active' ? $cleanDot : 'bg-gray-400' }}" title="{{ ucfirst($room->cleaning_status) }}"></span>
                                                 <span class="font-bold text-gray-900 text-sm">#{{ $room->room_number }}</span>
                                             </div>
                                             <div class="text-[10px] text-gray-500 font-normal flex items-center gap-1 mt-0.5">

@@ -441,24 +441,50 @@
                     $isHighPriority = $item['isHighPriority'];
                     $isOccupied = $item['isOccupied'];
 
-                    // Penentuan Latar Belakang Terang Pastel Sesuai Status Kamar
+                    // Penentuan Latar Belakang & Pita Sesuai Status Kamar & Kebersihan
                     $isMaintenance = in_array($room->operational_status, ['maintenance', 'disabled']);
-                    $isCleanOrInspected = in_array($room->cleaning_status, ['clean', 'inspected']);
-                    $isDirtyOrCleaning = in_array($room->cleaning_status, ['dirty', 'cleaning']);
 
                     if ($isMaintenance) {
                         $cardBg = 'bg-rose-50/70';
+                        $cleanlinessBarBg = 'bg-rose-500';
                     } elseif ($isOccupied) {
                         $cardBg = 'bg-sky-50/70';
-                    } elseif ($isDirtyOrCleaning) {
-                        $cardBg = 'bg-amber-50/70';
+                        $cleanlinessBarBg = match($room->cleaning_status) {
+                            'inspected' => 'bg-emerald-500',
+                            'clean' => 'bg-teal-500',
+                            'cleaning' => 'bg-blue-500',
+                            default => 'bg-amber-500',
+                        };
                     } else {
-                        // Kosong Siap
-                        $cardBg = 'bg-emerald-50/70';
+                        // Kamar Kosong: bedakan warna background berdasarkan status kebersihan
+                        $cardBg = match($room->cleaning_status) {
+                            'inspected' => 'bg-emerald-50/70',
+                            'clean' => 'bg-teal-50/70',
+                            'cleaning' => 'bg-blue-50/60',
+                            default => 'bg-amber-50/70',
+                        };
+                        $cleanlinessBarBg = match($room->cleaning_status) {
+                            'inspected' => 'bg-emerald-500',
+                            'clean' => 'bg-teal-500',
+                            'cleaning' => 'bg-blue-500',
+                            default => 'bg-amber-500',
+                        };
                     }
 
-                    // Warna Garis Pita 4px Status Kebersihan di Atas Card
-                    $cleanlinessBarBg = $isCleanOrInspected ? 'bg-emerald-500' : ($room->cleaning_status === 'cleaning' ? 'bg-blue-500' : 'bg-amber-500');
+                    $cleanBadgeStyle = match($room->cleaning_status) {
+                        'inspected' => 'bg-emerald-100 text-emerald-800 border border-emerald-200',
+                        'clean' => 'bg-teal-100 text-teal-800 border border-teal-200',
+                        'cleaning' => 'bg-blue-100 text-blue-800 border border-blue-200',
+                        default => 'bg-amber-100 text-amber-800 border border-amber-200',
+                    };
+
+                    $cleanBadgeLabel = match($room->cleaning_status) {
+                        'inspected' => 'Siap Pakai',
+                        'clean' => 'Bersih',
+                        'cleaning' => 'Cleaning',
+                        default => 'Kotor',
+                    };
+
                     $typeColor = $room->roomType?->color ?? '#059669';
                 @endphp
 
@@ -490,8 +516,8 @@
                                         {{ $room->operational_status }}
                                     </span>
                                 </div>
-                                <span class="text-[9px] px-1.5 py-0.2 rounded font-medium {{ $isCleanOrInspected ? 'bg-emerald-100 text-emerald-800' : ($room->cleaning_status === 'cleaning' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800') }}">
-                                    {{ ucfirst($room->cleaning_status) }}
+                                <span class="text-[9px] px-1.5 py-0.2 rounded font-semibold {{ $cleanBadgeStyle }}">
+                                    {{ $cleanBadgeLabel }}
                                 </span>
                             </div>
                         </div>
@@ -601,6 +627,45 @@
                     Tidak ada kamar yang sesuai dengan filter.
                 </div>
             @endforelse
+        </div>
+
+        <!-- Legenda Indikator Status Kamar & Kebersihan -->
+        <div class="bg-white/80 p-2.5 rounded-xl border border-gray-200/80 shadow-2xs flex flex-wrap items-center justify-between gap-2.5 text-[11px] text-gray-600">
+            <div class="flex items-center gap-1.5 font-bold text-gray-700">
+                <span>Indikator Kebersihan:</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <span class="inline-flex items-center gap-1.5">
+                    <span class="w-3 h-2 rounded-xs bg-emerald-500 shrink-0"></span>
+                    <span class="font-semibold text-emerald-800">Siap Pakai</span>
+                    <span class="text-[10px] text-gray-400">(Inspected)</span>
+                </span>
+                <span class="inline-flex items-center gap-1.5">
+                    <span class="w-3 h-2 rounded-xs bg-teal-500 shrink-0"></span>
+                    <span class="font-semibold text-teal-800">Bersih</span>
+                    <span class="text-[10px] text-gray-400">(Menunggu Inspeksi)</span>
+                </span>
+                <span class="inline-flex items-center gap-1.5">
+                    <span class="w-3 h-2 rounded-xs bg-blue-500 shrink-0"></span>
+                    <span class="font-semibold text-blue-800">Cleaning</span>
+                    <span class="text-[10px] text-gray-400">(Sedang Dibersihkan)</span>
+                </span>
+                <span class="inline-flex items-center gap-1.5">
+                    <span class="w-3 h-2 rounded-xs bg-amber-500 shrink-0"></span>
+                    <span class="font-semibold text-amber-800">Kotor</span>
+                    <span class="text-[10px] text-gray-400">(Perlu Dibersihkan)</span>
+                </span>
+            </div>
+            <div class="flex items-center gap-3 border-t sm:border-t-0 sm:border-l border-gray-200 pt-1 sm:pt-0 sm:pl-3">
+                <span class="inline-flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded bg-sky-200 border border-sky-400 shrink-0"></span>
+                    <span class="font-medium text-sky-900">Terisi (In-House)</span>
+                </span>
+                <span class="inline-flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded bg-rose-200 border border-rose-400 shrink-0"></span>
+                    <span class="font-medium text-rose-900">Maintenance</span>
+                </span>
+            </div>
         </div>
 
         <!-- Modal Extend Stay -->
@@ -995,13 +1060,14 @@
                                         @php
                                             $isSelected = (int) $plotTargetRoomId === (int) $room->id;
                                             $cleanColor = match($room->cleaning_status) {
-                                                'clean', 'inspected' => 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                                                'inspected' => 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                                                'clean' => 'bg-teal-100 text-teal-800 border-teal-200',
                                                 'cleaning' => 'bg-blue-100 text-blue-800 border-blue-200',
                                                 default => 'bg-amber-100 text-amber-800 border-amber-200',
                                             };
                                             $cleanLabel = match($room->cleaning_status) {
+                                                'inspected' => 'Siap Pakai',
                                                 'clean' => 'Bersih',
-                                                'inspected' => 'Siap Huni',
                                                 'cleaning' => 'Dibersihkan',
                                                 default => 'Kotor',
                                             };

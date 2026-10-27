@@ -100,17 +100,21 @@
                                         @endif
                                     </td>
                                     <td class="px-4 py-3 whitespace-nowrap text-center">
-                                        @if($room->cleaning_status === 'clean' || $room->cleaning_status === 'inspected')
-                                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                                                {{ ucfirst($room->cleaning_status) }}
+                                        @if($room->cleaning_status === 'inspected')
+                                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                Siap Pakai
+                                            </span>
+                                        @elseif($room->cleaning_status === 'clean')
+                                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200">
+                                                Bersih
                                             </span>
                                         @elseif($room->cleaning_status === 'cleaning')
-                                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
                                                 Cleaning
                                             </span>
                                         @else
                                             <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                                Dirty
+                                                Kotor
                                             </span>
                                         @endif
                                     </td>
@@ -310,10 +314,10 @@
                             <div>
                                 <label class="block text-xs font-semibold text-gray-700 mb-1">Status Kebersihan</label>
                                 <select wire:model="cleaning_status" class="w-full text-sm border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
-                                    <option value="clean">Bersih (Clean)</option>
-                                    <option value="inspected">Diperiksa (Inspected)</option>
+                                    <option value="inspected">Diperiksa / Siap Pakai</option>
+                                    <option value="clean">Bersih (Menunggu Inspeksi)</option>
                                     <option value="cleaning">Sedang Dibersihkan</option>
-                                    <option value="dirty">Kotor (Dirty)</option>
+                                    <option value="dirty">Kotor (Perlu Dibersihkan)</option>
                                 </select>
                             </div>
                         </div>

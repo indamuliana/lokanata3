@@ -106,7 +106,7 @@ class MasterDataSeeder extends Seeder
                     'room_type_id' => $createdTypes[$typeCode]->id,
                     'floor' => $floor,
                     'operational_status' => 'active',
-                    'cleaning_status' => 'clean',
+                    'cleaning_status' => 'inspected',
                 ]
             );
         }
