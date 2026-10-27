@@ -1345,7 +1345,7 @@
                             <button type="button" wire:click="closeWebOrderModal" class="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-900 rounded-xl hover:bg-gray-100 transition cursor-pointer">
                                 Batal
                             </button>
-                            <button type="button" wire:click="saveWebOrderSettings" wire:loading.attr="disabled" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer">
+                            <button type="button" wire:click="saveWebOrderSettings" wire:loading.attr="disabled" class="px-5 py-2.5 bg-sky-100 hover:bg-sky-200 text-sky-800 border border-sky-300 font-bold text-xs rounded-xl shadow-2xs transition flex items-center gap-1.5 cursor-pointer">
                                 <span wire:loading.remove>Simpan Pengaturan Web</span>
                                 <span wire:loading>Menyimpan...</span>
                             </button>
