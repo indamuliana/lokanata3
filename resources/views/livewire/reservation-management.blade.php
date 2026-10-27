@@ -573,6 +573,27 @@
                                             </select>
                                         </div>
                                     </div>
+
+                                    <!-- Pilihan Paket Sarapan -->
+                                    <div class="bg-gray-50/70 p-3 rounded-xl border border-gray-200">
+                                        <label class="block text-xs font-bold text-gray-800 mb-1.5">Paket Sarapan</label>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <label class="p-2.5 rounded-lg border flex items-center justify-between cursor-pointer transition {{ $include_breakfast ? 'border-emerald-500 bg-emerald-50/80 shadow-2xs' : 'border-gray-200 bg-white hover:border-gray-300' }}">
+                                                <div class="flex items-center gap-2">
+                                                    <input type="radio" wire:model.live="include_breakfast" :value="true" class="text-emerald-600 focus:ring-emerald-500">
+                                                    <span class="text-xs font-bold text-gray-900">🍳 Termasuk Sarapan</span>
+                                                </div>
+                                                <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800">Default</span>
+                                            </label>
+                                            <label class="p-2.5 rounded-lg border flex items-center justify-between cursor-pointer transition {{ !$include_breakfast ? 'border-emerald-500 bg-emerald-50/80 shadow-2xs' : 'border-gray-200 bg-white hover:border-gray-300' }}">
+                                                <div class="flex items-center gap-2">
+                                                    <input type="radio" wire:model.live="include_breakfast" :value="false" class="text-emerald-600 focus:ring-emerald-500">
+                                                    <span class="text-xs font-bold text-gray-800">☕ Tanpa Sarapan</span>
+                                                </div>
+                                                <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-gray-100 text-gray-600">Room Only</span>
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- Layanan Ekstra (Add-on) Multi Dinamis -->
@@ -955,6 +976,27 @@
                                                     <option value="{{ $ar->id }}">Kamar {{ $ar->room_number }} ({{ $ar->floor ?? 'Lt.' }})</option>
                                                 @endforeach
                                             </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Pilihan Paket Sarapan (Edit) -->
+                                    <div class="bg-gray-50/70 p-3 rounded-xl border border-gray-200">
+                                        <label class="block text-xs font-bold text-gray-800 mb-1.5">Paket Sarapan</label>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <label class="p-2.5 rounded-lg border flex items-center justify-between cursor-pointer transition {{ $edit_include_breakfast ? 'border-emerald-500 bg-emerald-50/80 shadow-2xs' : 'border-gray-200 bg-white hover:border-gray-300' }}">
+                                                <div class="flex items-center gap-2">
+                                                    <input type="radio" wire:model.live="edit_include_breakfast" :value="true" class="text-emerald-600 focus:ring-emerald-500">
+                                                    <span class="text-xs font-bold text-gray-900">🍳 Termasuk Sarapan</span>
+                                                </div>
+                                                <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800">Default</span>
+                                            </label>
+                                            <label class="p-2.5 rounded-lg border flex items-center justify-between cursor-pointer transition {{ !$edit_include_breakfast ? 'border-emerald-500 bg-emerald-50/80 shadow-2xs' : 'border-gray-200 bg-white hover:border-gray-300' }}">
+                                                <div class="flex items-center gap-2">
+                                                    <input type="radio" wire:model.live="edit_include_breakfast" :value="false" class="text-emerald-600 focus:ring-emerald-500">
+                                                    <span class="text-xs font-bold text-gray-800">☕ Tanpa Sarapan</span>
+                                                </div>
+                                                <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-gray-100 text-gray-600">Room Only</span>
+                                            </label>
                                         </div>
                                     </div>
                                 </div>
@@ -1474,6 +1516,11 @@
                             <div class="flex items-center gap-2">
                                 <span class="w-3 h-3 rounded-full shrink-0" style="background-color: {{ $detailReservation->roomType?->color ?? '#059669' }};"></span>
                                 <span class="font-bold text-gray-900 text-sm">{{ $detailReservation->roomType?->name ?? 'Tipe Kamar' }}</span>
+                            </div>
+                            <div class="pt-0.5">
+                                <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded {{ $detailReservation->include_breakfast ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-amber-100 text-amber-800 border border-amber-200' }}">
+                                    {{ $detailReservation->include_breakfast ? '🍳 Termasuk Sarapan' : '☕ Tanpa Sarapan (Room Only)' }}
+                                </span>
                             </div>
                             <div class="text-xs">
                                 @if($detailReservation->allocatedRooms->isNotEmpty())

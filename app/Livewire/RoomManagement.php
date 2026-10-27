@@ -60,8 +60,10 @@ class RoomManagement extends Component
     public string $type_color = '#059669';
     public int $standard_capacity = 2;
     public int $max_capacity = 3;
-    public int $base_price = 350000;
-    public ?int $high_season_price = 350000;
+    public int $base_price = 400000;
+    public ?int $price_without_breakfast = 360000;
+    public ?int $high_season_price = 450000;
+    public ?int $high_season_price_without_breakfast = 410000;
     public bool $is_high_season_same = true;
     public int $extra_person_fee = 75000;
     public bool $is_active = true;
@@ -103,7 +105,9 @@ class RoomManagement extends Component
             'standard_capacity' => 'required|integer|min:1',
             'max_capacity' => 'required|integer|min:1',
             'base_price' => 'required|integer|min:0',
+            'price_without_breakfast' => 'nullable|integer|min:0',
             'high_season_price' => 'nullable|integer|min:0',
+            'high_season_price_without_breakfast' => 'nullable|integer|min:0',
             'is_high_season_same' => 'boolean',
             'extra_person_fee' => 'required|integer|min:0',
             'is_active' => 'boolean',
@@ -226,7 +230,9 @@ class RoomManagement extends Component
             $this->standard_capacity = $type->standard_capacity;
             $this->max_capacity = $type->max_capacity;
             $this->base_price = $type->base_price;
+            $this->price_without_breakfast = $type->price_without_breakfast;
             $this->high_season_price = $type->high_season_price ?: $type->base_price;
+            $this->high_season_price_without_breakfast = $type->high_season_price_without_breakfast;
             $this->is_high_season_same = empty($type->high_season_price) || ($type->high_season_price == $type->base_price);
             $this->extra_person_fee = $type->extra_person_fee;
             $this->is_active = $type->is_active;
@@ -248,8 +254,10 @@ class RoomManagement extends Component
             $this->standard_capacity = 2;
             $this->max_capacity = 3;
             $this->base_price = 400000;
-            $this->high_season_price = 400000;
-            $this->is_high_season_same = true;
+            $this->price_without_breakfast = 360000;
+            $this->high_season_price = 450000;
+            $this->high_season_price_without_breakfast = 410000;
+            $this->is_high_season_same = false;
             $this->extra_person_fee = 75000;
             $this->is_active = true;
             $this->website_quota = 0;
@@ -366,6 +374,10 @@ class RoomManagement extends Component
         $remaining = array_merge(array_values($existingCopy), array_values($newPhotoPaths));
         $allPhotos = $coverUrl ? array_merge([$coverUrl], $remaining) : $remaining;
         $highPrice = $this->is_high_season_same ? $this->base_price : ($this->high_season_price ?: $this->base_price);
+        $baseWithout = $this->price_without_breakfast ?: max(0, $this->base_price - 40000);
+        $highWithout = $this->is_high_season_same 
+            ? $baseWithout 
+            : ($this->high_season_price_without_breakfast ?: max(0, $highPrice - 40000));
 
         $data = [
             'name' => $this->type_name,
@@ -375,7 +387,9 @@ class RoomManagement extends Component
             'standard_capacity' => $this->standard_capacity,
             'max_capacity' => $this->max_capacity,
             'base_price' => $this->base_price,
+            'price_without_breakfast' => $baseWithout,
             'high_season_price' => $highPrice,
+            'high_season_price_without_breakfast' => $highWithout,
             'extra_person_fee' => $this->extra_person_fee,
             'facilities' => $cleanFacilities,
             'photos' => $allPhotos,

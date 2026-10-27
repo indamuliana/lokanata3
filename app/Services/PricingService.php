@@ -15,11 +15,12 @@ class PricingService
      * Calculate price for a single night of a room type based on PRD priority:
      * Specific Date > High Season > Weekend/Weekday > Base Price
      */
-    public static function getNightRate(RoomType $roomType, string|Carbon $date): int
+    public static function getNightRate(RoomType $roomType, string|Carbon $date, bool $includeBreakfast = true): int
     {
         $carbonDate = Carbon::parse($date);
         $dateStr = $carbonDate->toDateString();
         $dayOfWeek = $carbonDate->dayOfWeek; // 0 (Sun) to 6 (Sat)
+        $effectiveBase = $includeBreakfast ? $roomType->base_price : $roomType->price_without_breakfast;
 
         // 1. Check Specific Date rule
         $specificRule = RateRule::where('is_active', true)
@@ -33,7 +34,7 @@ class PricingService
             ->first();
 
         if ($specificRule) {
-            return self::applyAdjustment($roomType->base_price, $specificRule);
+            return self::applyAdjustment($effectiveBase, $specificRule);
         }
 
         // 2. Check High Season rule
@@ -48,7 +49,7 @@ class PricingService
             ->first();
 
         if ($highSeasonRule) {
-            return self::applyAdjustment($roomType->base_price, $highSeasonRule);
+            return self::applyAdjustment($effectiveBase, $highSeasonRule);
         }
 
         // 3. Check Weekend rule (Friday=5, Saturday=6)
@@ -62,17 +63,20 @@ class PricingService
                 ->first();
 
             if ($weekendRule) {
-                return self::applyAdjustment($roomType->base_price, $weekendRule);
+                return self::applyAdjustment($effectiveBase, $weekendRule);
             }
         }
 
         // 4. Check RoomType High Season price (Saturday, Sunday, or registered Holiday)
-        if (SeasonService::isHighSeason($carbonDate) && !empty($roomType->high_season_price) && $roomType->high_season_price > 0) {
-            return (int) $roomType->high_season_price;
+        if (SeasonService::isHighSeason($carbonDate)) {
+            $highRate = $includeBreakfast ? (int) $roomType->high_season_price : (int) $roomType->high_season_price_without_breakfast;
+            if ($highRate > 0) {
+                return $highRate;
+            }
         }
 
-        // 5. Default: Base Price
-        return $roomType->base_price;
+        // 5. Default: Base Price / Price Without Breakfast
+        return $effectiveBase;
     }
 
     /**
@@ -87,7 +91,8 @@ class PricingService
         int $extraGuests = 0,
         ?int $customRatePerNight = null,
         bool $applyTax = true,
-        int $additionalCharges = 0
+        int $additionalCharges = 0,
+        bool $includeBreakfast = true
     ): array {
         $start = Carbon::parse($checkIn);
         $end = Carbon::parse($checkOut);
@@ -101,7 +106,7 @@ class PricingService
             $seasonInfo = SeasonService::getSeasonInfo($nightDate);
             $rate = ($customRatePerNight !== null && $customRatePerNight >= 0)
                 ? $customRatePerNight
-                : self::getNightRate($roomType, $nightDate);
+                : self::getNightRate($roomType, $nightDate, $includeBreakfast);
 
             $nightlyRates[] = [
                 'date' => $nightDate->toDateString(),
@@ -153,6 +158,7 @@ class PricingService
             'total_amount' => $total,
             'apply_tax' => $applyTax,
             'custom_rate_per_night' => $customRatePerNight,
+            'include_breakfast' => $includeBreakfast,
         ];
     }
 

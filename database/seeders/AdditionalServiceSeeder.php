@@ -11,6 +11,20 @@ class AdditionalServiceSeeder extends Seeder
     {
         $services = [
             [
+                'name' => 'Extra Bed (Dengan Sarapan)',
+                'category' => 'amenities',
+                'default_price' => 150000,
+                'unit' => 'pcs',
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Extra Bed (Tanpa Sarapan)',
+                'category' => 'amenities',
+                'default_price' => 135000,
+                'unit' => 'pcs',
+                'is_active' => true,
+            ],
+            [
                 'name' => 'Extra Bed',
                 'category' => 'amenities',
                 'default_price' => 150000,

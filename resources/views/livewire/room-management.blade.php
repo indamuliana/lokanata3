@@ -199,12 +199,20 @@
                                         <span class="text-gray-400 block text-[11px]">(Maks {{ $type->max_capacity }})</span>
                                     </td>
                                     <td class="px-4 py-3 whitespace-nowrap text-right">
-                                        <span class="font-bold text-emerald-700 text-sm">{{ rupiah($type->base_price) }}</span>
-                                        <span class="text-[10px] text-gray-400 block">/ malam</span>
+                                        <div class="text-xs">
+                                            <span class="font-bold text-emerald-700 text-sm">{{ rupiah($type->base_price) }}</span>
+                                            <span class="text-[10px] text-gray-500 block">🍳 Dgn Sarapan</span>
+                                            <span class="text-[11px] font-medium text-gray-600 block mt-0.5">{{ rupiah($type->price_without_breakfast) }}</span>
+                                            <span class="text-[10px] text-gray-400 block">☕ Tanpa Sarapan</span>
+                                        </div>
                                     </td>
                                     <td class="px-4 py-3 whitespace-nowrap text-right">
-                                        <span class="font-bold text-amber-700 text-sm">{{ rupiah($type->high_season_price ?: $type->base_price) }}</span>
-                                        <span class="text-[10px] text-gray-400 block">/ malam</span>
+                                        <div class="text-xs">
+                                            <span class="font-bold text-amber-700 text-sm">{{ rupiah($type->high_season_price ?: $type->base_price) }}</span>
+                                            <span class="text-[10px] text-gray-500 block">🍳 Dgn Sarapan</span>
+                                            <span class="text-[11px] font-medium text-amber-800 block mt-0.5">{{ rupiah($type->high_season_price_without_breakfast ?: $type->price_without_breakfast) }}</span>
+                                            <span class="text-[10px] text-gray-400 block">☕ Tanpa Sarapan</span>
+                                        </div>
                                     </td>
                                     <td class="px-4 py-3">
                                         <div class="flex flex-wrap gap-1 max-w-xs">
@@ -390,11 +398,18 @@
 
                         <!-- 2. TARIF NORMAL & HIGH SEASON -->
                         <div class="space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                            <div class="grid grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-700 mb-1">Tarif Normal / Malam (Rp) <span class="text-red-500">*</span></label>
-                                    <input type="number" wire:model="base_price" class="w-full text-sm border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500 font-bold text-gray-900" required>
+                                    <label class="block text-xs font-semibold text-gray-700 mb-1">Tarif Normal (Dgn Sarapan) <span class="text-red-500">*</span></label>
+                                    <input type="number" wire:model="base_price" class="w-full text-sm border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500 font-bold text-gray-900" placeholder="400000" required>
+                                    <span class="text-[10px] text-gray-500">Harga default termasuk sarapan.</span>
                                     @error('base_price') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700 mb-1">Tarif Normal (Tanpa Sarapan)</label>
+                                    <input type="number" wire:model="price_without_breakfast" class="w-full text-sm border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500 font-semibold text-gray-700" placeholder="360000">
+                                    <span class="text-[10px] text-gray-500">Kosongkan jika otomatis (-Rp 40.000).</span>
+                                    @error('price_without_breakfast') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-700 mb-1">Biaya Ekstra Orang (Rp)</label>
@@ -409,11 +424,19 @@
                                 </label>
 
                                 @if(!$is_high_season_same)
-                                    <div class="mt-2.5">
-                                        <label class="block text-xs font-semibold text-amber-900 mb-1">Tarif High Season / Malam (Rp) <span class="text-red-500">*</span></label>
-                                        <input type="number" wire:model="high_season_price" class="w-full text-sm border-amber-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 bg-amber-50/40 font-bold text-amber-900" placeholder="Contoh: 450000" required>
-                                        <span class="text-[10px] text-gray-500">Otomatis berlaku di akhir pekan (Sabtu/Minggu) dan tanggal libur kalender.</span>
-                                        @error('high_season_price') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                                    <div class="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-amber-50/50 p-3 rounded-lg border border-amber-200">
+                                        <div>
+                                            <label class="block text-xs font-semibold text-amber-900 mb-1">High Season (Dgn Sarapan) <span class="text-red-500">*</span></label>
+                                            <input type="number" wire:model="high_season_price" class="w-full text-sm border-amber-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 bg-white font-bold text-amber-900" placeholder="Contoh: 450000" required>
+                                            @error('high_season_price') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-semibold text-amber-900 mb-1">High Season (Tanpa Sarapan)</label>
+                                            <input type="number" wire:model="high_season_price_without_breakfast" class="w-full text-sm border-amber-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 bg-white font-semibold text-amber-800" placeholder="Contoh: 410000">
+                                            <span class="text-[10px] text-amber-700">Kosongkan jika otomatis (-Rp 40.000).</span>
+                                            @error('high_season_price_without_breakfast') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                                        </div>
+                                        <p class="col-span-full text-[10px] text-amber-800">Otomatis berlaku di akhir pekan (Sabtu/Minggu) dan tanggal libur kalender.</p>
                                     </div>
                                 @endif
                             </div>

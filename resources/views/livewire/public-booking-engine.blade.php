@@ -774,9 +774,22 @@
                             <span class="font-semibold text-gray-900">{{ $confirmedReservation->customer->name }}</span>
                         </div>
                         <div class="flex justify-between py-1 border-b">
-                            <span class="text-gray-500">Tipe Kamar:</span>
-                            <span class="font-semibold text-gray-900">{{ $confirmedReservation->roomType->name }}</span>
+                            <span class="text-gray-500">Tipe Kamar &amp; Paket:</span>
+                            <span class="font-semibold text-gray-900">
+                                {{ $confirmedReservation->roomType->name }} &bull;
+                                <span class="{{ $confirmedReservation->include_breakfast ? 'text-emerald-700' : 'text-amber-700' }}">
+                                    {{ $confirmedReservation->include_breakfast ? '🍳 Termasuk Sarapan' : '☕ Tanpa Sarapan (Room Only)' }}
+                                </span>
+                            </span>
                         </div>
+                        @if($confirmedReservation->serviceItems && $confirmedReservation->serviceItems->isNotEmpty())
+                            <div class="flex justify-between py-1 border-b">
+                                <span class="text-gray-500">Layanan Tambahan:</span>
+                                <span class="font-semibold text-indigo-700">
+                                    {{ $confirmedReservation->serviceItems->map(fn($s) => $s->item_name . ' (x' . $s->quantity . ')')->implode(', ') }}
+                                </span>
+                            </div>
+                        @endif
                         <div class="flex justify-between py-1 border-b">
                             <span class="text-gray-500">Periode Menginap:</span>
                             <span class="font-semibold text-gray-900">{{ $confirmedReservation->check_in_date->format('d/m/Y') }} s/d {{ $confirmedReservation->check_out_date->format('d/m/Y') }}</span>
@@ -811,7 +824,10 @@
                     @php
                         $hotelWa = \App\Models\HotelSetting::get('hotel_whatsapp', '6281120070000');
                         $cleanWa = preg_replace('/[^0-9]/', '', $hotelWa);
-                        $waText = urlencode("Assalamu'alaikum Front Desk InSitu Hotel Syariah Garut, saya sudah memesan kamar melalui website dengan kode *{$confirmedReservation->reservation_number}* atas nama *{$confirmedReservation->customer->name}*. Mohon informasi konfirmasi pembayaran saya. Terima kasih.");
+                        $pkgLabel = $confirmedReservation->include_breakfast ? 'Termasuk Sarapan' : 'Tanpa Sarapan';
+                        $svcList = $confirmedReservation->serviceItems?->pluck('item_name')->implode(', ');
+                        $svcText = $svcList ? " + Extra: {$svcList}" : '';
+                        $waText = urlencode("Assalamu'alaikum Front Desk InSitu Hotel Syariah Garut, saya sudah memesan kamar melalui website dengan kode *{$confirmedReservation->reservation_number}* atas nama *{$confirmedReservation->customer->name}* ({$confirmedReservation->roomType->name} - {$pkgLabel}{$svcText}). Mohon informasi konfirmasi pembayaran saya. Terima kasih.");
                     @endphp
 
                     <!-- Actions -->
@@ -873,6 +889,30 @@
                                 @endforeach
                             </select>
                         </div>
+                    </div>
+
+                    <!-- Pilihan Paket Sarapan -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label class="p-3 rounded-xl border flex items-center justify-between cursor-pointer transition {{ $include_breakfast ? 'border-emerald-500 bg-emerald-50/70 shadow-2xs' : 'border-gray-200 bg-white hover:border-gray-300' }}">
+                            <div class="flex items-center gap-2.5">
+                                <input type="radio" wire:model.live="include_breakfast" :value="true" class="text-emerald-600 focus:ring-emerald-500">
+                                <div>
+                                    <span class="block text-xs font-bold text-gray-900">🍳 Termasuk Sarapan</span>
+                                    <span class="block text-[11px] text-emerald-700">Paket Rekomendasi</span>
+                                </div>
+                            </div>
+                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">Default</span>
+                        </label>
+                        <label class="p-3 rounded-xl border flex items-center justify-between cursor-pointer transition {{ !$include_breakfast ? 'border-emerald-500 bg-emerald-50/70 shadow-2xs' : 'border-gray-200 bg-white hover:border-gray-300' }}">
+                            <div class="flex items-center gap-2.5">
+                                <input type="radio" wire:model.live="include_breakfast" :value="false" class="text-emerald-600 focus:ring-emerald-500">
+                                <div>
+                                    <span class="block text-xs font-bold text-gray-900">☕ Tanpa Sarapan</span>
+                                    <span class="block text-[11px] text-gray-500">Room Only (Lebih Hemat)</span>
+                                </div>
+                            </div>
+                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">Hemat</span>
+                        </label>
                     </div>
 
                     <!-- Room Availability & Live Pricing Preview -->
@@ -1149,14 +1189,15 @@
                                 @foreach($availList as $item)
                                     @php
                                         $roomType = $item['type'];
-                                        $p = $item['pricing'];
+                                        $pWith = $item['pricing_with_breakfast'];
+                                        $pWithout = $item['pricing_without_breakfast'];
                                         $count = $item['available_count'];
-                                        $totalStay = $p['total_amount'] ?? ($roomType->base_price * max(1, $this->nightsCount));
-                                        $subtotal = $p['subtotal'] ?? ($roomType->base_price * max(1, $this->nightsCount));
+                                        $totalWith = $pWith['total_amount'] ?? ($roomType->base_price * max(1, $this->nightsCount));
+                                        $totalWithout = $pWithout['total_amount'] ?? ($roomType->price_without_breakfast * max(1, $this->nightsCount));
                                     @endphp
-                                    <div class="bg-gray-50/80 hover:bg-emerald-50/20 border border-gray-200/90 rounded-2xl p-4 sm:p-5 transition flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between">
+                                    <div class="bg-gray-50/80 hover:bg-emerald-50/20 border border-gray-200/90 rounded-2xl p-4 sm:p-5 transition flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
                                         <!-- Info Kiri Kamar -->
-                                        <div class="flex gap-3.5 items-start sm:items-center">
+                                        <div class="flex gap-3.5 items-start sm:items-center flex-1 min-w-0">
                                             @if($roomType->primary_photo)
                                                 <img src="{{ $roomType->primary_photo }}" alt="{{ $roomType->name }}" class="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover border border-gray-200 shrink-0">
                                             @else
@@ -1164,7 +1205,7 @@
                                                     Foto Kamar
                                                 </div>
                                             @endif
-                                            <div class="space-y-1 min-w-0">
+                                            <div class="space-y-1 min-w-0 flex-1">
                                                 <div class="flex items-center gap-2">
                                                     <span class="px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-xs" style="background-color: {{ $roomType->color ?? '#059669' }};">
                                                         {{ $roomType->code }}
@@ -1196,27 +1237,47 @@
                                             </div>
                                         </div>
 
-                                        <!-- Harga & Tombol Pilih -->
-                                        <div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-200 shrink-0 gap-2 sm:gap-1.5">
-                                            <div class="text-left sm:text-right">
-                                                <span class="text-[10px] text-gray-400 block font-medium">Estimasi {{ $this->nightsCount }} Malam:</span>
-                                                <div class="flex items-baseline gap-1.5 sm:justify-end">
-                                                    <span class="text-base sm:text-lg font-black text-emerald-700 font-mono">{{ rupiah($totalStay) }}</span>
-                                                    @if(($p['discount_amount'] ?? 0) > 0)
-                                                        <span class="text-[10px] text-gray-400 line-through font-mono">{{ rupiah($subtotal) }}</span>
-                                                    @endif
-                                                </div>
-                                                <span class="text-[10px] text-gray-500 block">{{ rupiah($roomType->base_price) }} / malam</span>
-                                            </div>
+                                        <!-- Pilihan Paket & Tombol Pilih -->
+                                        <div class="border-t md:border-t-0 md:border-l md:pl-4 pt-3 md:pt-0 border-gray-200 shrink-0 flex flex-col justify-center gap-2 min-w-full md:min-w-[270px]">
                                             @if($count > 0)
-                                                <button type="button" wire:click="selectRoomForBooking({{ $roomType->id }})" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs hover:shadow-md transition flex items-center gap-1.5 cursor-pointer">
-                                                    <span>Pilih Kamar Ini</span>
-                                                    <span>&rarr;</span>
+                                                <!-- Opsi 1: Termasuk Sarapan -->
+                                                <button type="button" 
+                                                        wire:click="selectRoomForBooking({{ $roomType->id }}, true)"
+                                                        class="p-2.5 rounded-xl border border-emerald-300 bg-emerald-50/70 hover:bg-emerald-100 hover:border-emerald-400 transition text-left flex items-center justify-between gap-2 shadow-2xs group cursor-pointer">
+                                                    <div class="min-w-0">
+                                                        <div class="flex items-center gap-1.5">
+                                                            <span class="text-xs font-bold text-gray-900">🍳 Termasuk Sarapan</span>
+                                                            <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-200/80 text-emerald-900">Default</span>
+                                                        </div>
+                                                        <span class="text-[10px] text-gray-500 font-mono block">{{ rupiah($pWith['nightly_rates'][0]['rate'] ?? $roomType->base_price) }} / malam</span>
+                                                    </div>
+                                                    <div class="text-right shrink-0">
+                                                        <span class="text-xs font-black text-emerald-800 font-mono block">{{ rupiah($totalWith) }}</span>
+                                                        <span class="text-[10px] font-bold text-emerald-600 group-hover:translate-x-0.5 transition inline-flex items-center gap-0.5">Pilih &rarr;</span>
+                                                    </div>
+                                                </button>
+
+                                                <!-- Opsi 2: Tanpa Sarapan -->
+                                                <button type="button" 
+                                                        wire:click="selectRoomForBooking({{ $roomType->id }}, false)"
+                                                        class="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 transition text-left flex items-center justify-between gap-2 shadow-2xs group cursor-pointer">
+                                                    <div class="min-w-0">
+                                                        <div class="flex items-center gap-1.5">
+                                                            <span class="text-xs font-bold text-gray-800">☕ Tanpa Sarapan</span>
+                                                            <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-gray-100 text-gray-600">Room Only</span>
+                                                        </div>
+                                                        <span class="text-[10px] text-gray-500 font-mono block">{{ rupiah($pWithout['nightly_rates'][0]['rate'] ?? $roomType->price_without_breakfast) }} / malam</span>
+                                                    </div>
+                                                    <div class="text-right shrink-0">
+                                                        <span class="text-xs font-black text-gray-900 font-mono block">{{ rupiah($totalWithout) }}</span>
+                                                        <span class="text-[10px] font-bold text-gray-500 group-hover:translate-x-0.5 transition inline-flex items-center gap-0.5">Pilih &rarr;</span>
+                                                    </div>
                                                 </button>
                                             @else
-                                                <button type="button" disabled class="px-4 py-2.5 bg-gray-200 text-gray-500 font-bold text-xs rounded-xl cursor-not-allowed">
-                                                    Penuh / Tidak Tersedia Online
-                                                </button>
+                                                <div class="text-center py-4 px-3 bg-gray-100 rounded-xl">
+                                                    <span class="text-xs font-bold text-gray-400 block">Kamar Penuh</span>
+                                                    <span class="text-[10px] text-gray-400">Tidak tersedia online</span>
+                                                </div>
                                             @endif
                                         </div>
                                     </div>
@@ -1279,6 +1340,74 @@
                             </button>
                         </div>
 
+                        <!-- Pilihan Paket Sarapan (Radio Cards) -->
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-bold text-gray-800 uppercase tracking-wide">Pilihan Paket Sarapan</label>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <label class="p-3 rounded-xl border flex items-center justify-between cursor-pointer transition {{ $include_breakfast ? 'border-emerald-500 bg-emerald-50/70 shadow-2xs ring-1 ring-emerald-400' : 'border-gray-200 bg-white hover:border-gray-300' }}">
+                                    <div class="flex items-center gap-2.5">
+                                        <input type="radio" name="modal_pkg" wire:click="setIncludeBreakfast(true)" @if($include_breakfast) checked @endif class="text-emerald-600 focus:ring-emerald-500">
+                                        <div>
+                                            <span class="block text-xs font-bold text-gray-900">🍳 Termasuk Sarapan</span>
+                                            <span class="block text-[11px] text-emerald-700 font-semibold">Paket Lengkap &amp; Rekomendasi</span>
+                                        </div>
+                                    </div>
+                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">Default</span>
+                                </label>
+
+                                <label class="p-3 rounded-xl border flex items-center justify-between cursor-pointer transition {{ !$include_breakfast ? 'border-emerald-500 bg-emerald-50/70 shadow-2xs ring-1 ring-emerald-400' : 'border-gray-200 bg-white hover:border-gray-300' }}">
+                                    <div class="flex items-center gap-2.5">
+                                        <input type="radio" name="modal_pkg" wire:click="setIncludeBreakfast(false)" @if(!$include_breakfast) checked @endif class="text-emerald-600 focus:ring-emerald-500">
+                                        <div>
+                                            <span class="block text-xs font-bold text-gray-900">☕ Tanpa Sarapan</span>
+                                            <span class="block text-[11px] text-gray-500">Room Only (Lebih Hemat)</span>
+                                        </div>
+                                    </div>
+                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-700">Hemat</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Pilihan Layanan Tambahan Extra Bed -->
+                        @if($this->extrabedOptions->isNotEmpty())
+                            <div class="space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <label class="block text-xs font-bold text-gray-800 uppercase tracking-wide">Layanan Tambahan Extra Bed (Opsional)</label>
+                                    @if($selected_extrabed_service_id)
+                                        <button type="button" wire:click="$set('selected_extrabed_service_id', null)" class="text-[11px] font-semibold text-rose-600 hover:text-rose-700 cursor-pointer">
+                                            ✕ Batal Pilih Extra Bed
+                                        </button>
+                                    @endif
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    @foreach($this->extrabedOptions as $opt)
+                                        @php $isSelected = $selected_extrabed_service_id == $opt->id; @endphp
+                                        <label class="p-3 rounded-xl border flex items-center justify-between cursor-pointer transition {{ $isSelected ? 'border-emerald-500 bg-emerald-50/70 shadow-2xs ring-1 ring-emerald-400' : 'border-gray-200 bg-white hover:border-gray-300' }}">
+                                            <div class="flex items-center gap-2.5 min-w-0">
+                                                <input type="radio" name="modal_extrabed" value="{{ $opt->id }}" wire:model.live="selected_extrabed_service_id" class="text-emerald-600 focus:ring-emerald-500">
+                                                <div class="min-w-0">
+                                                    <span class="block text-xs font-bold text-gray-900 truncate">🛏️ {{ $opt->name }}</span>
+                                                    <span class="block text-[11px] text-emerald-700 font-mono font-semibold">{{ rupiah($opt->default_price) }} / malam</span>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    @endforeach
+                                </div>
+                                @if($selected_extrabed_service_id)
+                                    <div class="flex items-center gap-2 text-xs text-gray-600 pt-1">
+                                        <span>Jumlah unit:</span>
+                                        <select wire:model.live="extrabed_qty" class="text-xs rounded-lg border-gray-300 py-1 px-2.5">
+                                            <option value="1">1 Unit</option>
+                                            <option value="2">2 Unit</option>
+                                        </select>
+                                        <span class="text-gray-500 text-[11px]">
+                                            ({{ $this->nightsCount }} malam &times; {{ rupiah(\App\Models\AdditionalService::find($selected_extrabed_service_id)?->default_price * max(1, $extrabed_qty)) }} = <strong class="text-gray-800">{{ rupiah(\App\Models\AdditionalService::find($selected_extrabed_service_id)?->default_price * max(1, $extrabed_qty) * max(1, $this->nightsCount)) }}</strong>)
+                                        </span>
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+
                         <!-- Rincian Biaya Transparan -->
                         @if($modalPricing)
                             <div class="bg-white rounded-2xl p-4 border border-gray-200 text-xs space-y-2">
@@ -1287,9 +1416,15 @@
                                     <span class="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded">Resmi InSitu Hotel</span>
                                 </div>
                                 <div class="flex justify-between text-gray-600">
-                                    <span>Tarif Kamar ({{ $modalPricing['nights'] }} malam):</span>
+                                    <span>Tarif Kamar ({{ $modalPricing['nights'] }} malam &bull; {{ $include_breakfast ? 'Termasuk Sarapan' : 'Tanpa Sarapan' }}):</span>
                                     <span class="font-mono">{{ rupiah($modalPricing['subtotal']) }}</span>
                                 </div>
+                                @if(($modalPricing['additional_charges'] ?? 0) > 0)
+                                    <div class="flex justify-between text-indigo-700 font-medium">
+                                        <span>Layanan Tambahan (Extra Bed):</span>
+                                        <span class="font-mono">+{{ rupiah($modalPricing['additional_charges']) }}</span>
+                                    </div>
+                                @endif
                                 @if(($modalPricing['discount_amount'] ?? 0) > 0)
                                     <div class="flex justify-between text-emerald-600 font-semibold">
                                         <span>Potongan Diskon Promo ({{ $promo_code }}):</span>

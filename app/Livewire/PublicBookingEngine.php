@@ -26,6 +26,9 @@ class PublicBookingEngine extends Component
 
     // Quick Search & Instant Modal State
     public int $rooms_count = 1;
+    public bool $include_breakfast = true;
+    public ?int $selected_extrabed_service_id = null;
+    public int $extrabed_qty = 1;
     public bool $showQuickBookingModal = false;
     public bool $showSearchResultsModal = false;
     public int $modalStep = 1; // 1 = Room List, 2 = Guest Info & Cost Breakdown, 3 = Confirmation Success
@@ -151,11 +154,15 @@ class PublicBookingEngine extends Component
 
         $this->modalStep = 1;
         $this->selectedRoomTypeId = null;
+        $this->include_breakfast = true;
+        $this->selected_extrabed_service_id = null;
+        $this->extrabed_qty = 1;
+        $this->pricingCache = [];
         $this->confirmedReservation = null;
         $this->showSearchResultsModal = true;
     }
 
-    public function selectRoomForBooking(int $roomTypeId): void
+    public function selectRoomForBooking(int $roomTypeId, bool $includeBreakfast = true): void
     {
         $type = RoomType::find($roomTypeId);
         if (!$type || !$type->is_active) {
@@ -173,13 +180,27 @@ class PublicBookingEngine extends Component
 
         $this->selectedRoomTypeId = $roomTypeId;
         $this->room_type_id = $roomTypeId;
+        $this->include_breakfast = $includeBreakfast;
+        $this->selected_extrabed_service_id = null;
+        $this->extrabed_qty = 1;
+        $this->pricingCache = [];
         $this->modalStep = 2;
+    }
+
+    public function setIncludeBreakfast(bool $val): void
+    {
+        $this->include_breakfast = $val;
+        $this->pricingCache = [];
     }
 
     public function backToRoomSelection(): void
     {
         $this->modalStep = 1;
         $this->selectedRoomTypeId = null;
+        $this->include_breakfast = true;
+        $this->selected_extrabed_service_id = null;
+        $this->extrabed_qty = 1;
+        $this->pricingCache = [];
     }
 
     public function closeSearchResultsModal(): void
@@ -187,10 +208,14 @@ class PublicBookingEngine extends Component
         $this->showSearchResultsModal = false;
         $this->modalStep = 1;
         $this->selectedRoomTypeId = null;
+        $this->include_breakfast = true;
+        $this->selected_extrabed_service_id = null;
+        $this->extrabed_qty = 1;
+        $this->pricingCache = [];
         $this->confirmedReservation = null;
     }
 
-    public function openQuickBookingModal(int $roomTypeId): void
+    public function openQuickBookingModal(int $roomTypeId, bool $includeBreakfast = true): void
     {
         $type = RoomType::find($roomTypeId);
         if (!$type || !$type->is_active) {
@@ -208,6 +233,10 @@ class PublicBookingEngine extends Component
 
         $this->selectedRoomTypeId = $roomTypeId;
         $this->room_type_id = $roomTypeId;
+        $this->include_breakfast = $includeBreakfast;
+        $this->selected_extrabed_service_id = null;
+        $this->extrabed_qty = 1;
+        $this->pricingCache = [];
         $this->modalStep = 2;
         $this->confirmedReservation = null;
         $this->showQuickBookingModal = true;
@@ -244,13 +273,22 @@ class PublicBookingEngine extends Component
 
         foreach ($types as $type) {
             $availCount = ReservationService::getAvailableRoomCount($type, $this->check_in_date, $this->check_out_date, 'website');
-            $pricing = null;
+            $pricingWith = null;
+            $pricingWithout = null;
             try {
-                $pricing = \App\Services\PricingService::calculateStay(
+                $pricingWith = \App\Services\PricingService::calculateStay(
                     roomType: $type,
                     checkIn: $this->check_in_date,
                     checkOut: $this->check_out_date,
-                    promoCode: $this->promo_code ?: null
+                    promoCode: $this->promo_code ?: null,
+                    includeBreakfast: true
+                );
+                $pricingWithout = \App\Services\PricingService::calculateStay(
+                    roomType: $type,
+                    checkIn: $this->check_in_date,
+                    checkOut: $this->check_out_date,
+                    promoCode: $this->promo_code ?: null,
+                    includeBreakfast: false
                 );
             } catch (\Exception $e) {
                 // Ignore
@@ -259,7 +297,9 @@ class PublicBookingEngine extends Component
             $results[] = [
                 'type' => $type,
                 'available_count' => $availCount,
-                'pricing' => $pricing,
+                'pricing' => $this->include_breakfast ? $pricingWith : $pricingWithout,
+                'pricing_with_breakfast' => $pricingWith,
+                'pricing_without_breakfast' => $pricingWithout,
             ];
         }
 
@@ -281,13 +321,14 @@ class PublicBookingEngine extends Component
     protected array $pricingCache = [];
     protected array $availabilityCache = [];
 
-    public function getPricingForType(RoomType|int $roomType): ?array
+    public function getPricingForType(RoomType|int $roomType, ?bool $includeBreakfast = null): ?array
     {
         if (!$this->check_in_date || !$this->check_out_date) {
             return null;
         }
+        $withBreakfast = $includeBreakfast ?? $this->include_breakfast;
         $id = ($roomType instanceof RoomType) ? $roomType->id : (int) $roomType;
-        $cacheKey = "{$id}_{$this->check_in_date}_{$this->check_out_date}_{$this->promo_code}";
+        $cacheKey = "{$id}_{$this->check_in_date}_{$this->check_out_date}_{$this->promo_code}_" . ($withBreakfast ? '1' : '0');
         if (isset($this->pricingCache[$cacheKey])) {
             return $this->pricingCache[$cacheKey];
         }
@@ -300,7 +341,8 @@ class PublicBookingEngine extends Component
                 roomType: $type,
                 checkIn: $this->check_in_date,
                 checkOut: $this->check_out_date,
-                promoCode: $this->promo_code ?: null
+                promoCode: $this->promo_code ?: null,
+                includeBreakfast: $withBreakfast
             );
             return $this->pricingCache[$cacheKey] = $pricing;
         } catch (\Exception $e) {
@@ -331,9 +373,44 @@ class PublicBookingEngine extends Component
         return $this->selectedRoomTypeId ? RoomType::find($this->selectedRoomTypeId) : null;
     }
 
+    public function getExtrabedOptionsProperty()
+    {
+        return \App\Models\AdditionalService::whereIn('name', [
+            'Extra Bed (Dengan Sarapan)',
+            'Extra Bed (Tanpa Sarapan)',
+        ])->where('is_active', true)->orderByDesc('default_price')->get();
+    }
+
     public function getSelectedRoomPricingProperty(): ?array
     {
-        return $this->selectedRoomTypeId ? $this->getPricingForType($this->selectedRoomTypeId) : null;
+        if (!$this->selectedRoomTypeId || !$this->check_in_date || !$this->check_out_date) {
+            return null;
+        }
+
+        $type = RoomType::find($this->selectedRoomTypeId);
+        if (!$type) return null;
+
+        $addonTotal = 0;
+        if ($this->selected_extrabed_service_id) {
+            $extrabed = \App\Models\AdditionalService::find($this->selected_extrabed_service_id);
+            if ($extrabed) {
+                $nights = max(1, $this->nightsCount);
+                $addonTotal = $extrabed->default_price * max(1, $this->extrabed_qty) * $nights;
+            }
+        }
+
+        try {
+            return \App\Services\PricingService::calculateStay(
+                roomType: $type,
+                checkIn: $this->check_in_date,
+                checkOut: $this->check_out_date,
+                promoCode: $this->promo_code ?: null,
+                additionalCharges: $addonTotal,
+                includeBreakfast: $this->include_breakfast
+            );
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     public function mount(): void
@@ -363,7 +440,8 @@ class PublicBookingEngine extends Component
                 roomType: $type,
                 checkIn: $this->check_in_date,
                 checkOut: $this->check_out_date,
-                promoCode: $this->promo_code ?: null
+                promoCode: $this->promo_code ?: null,
+                includeBreakfast: $this->include_breakfast
             );
         } catch (\Exception $e) {
             return null;
@@ -401,6 +479,20 @@ class PublicBookingEngine extends Component
             'adults' => 'required|integer|min:1',
         ]);
 
+        $addonItems = [];
+        if ($this->selected_extrabed_service_id) {
+            $extrabed = \App\Models\AdditionalService::find($this->selected_extrabed_service_id);
+            if ($extrabed) {
+                $nights = max(1, $this->nightsCount);
+                $addonItems[] = [
+                    'additional_service_id' => $extrabed->id,
+                    'item_name' => $extrabed->name,
+                    'quantity' => max(1, $this->extrabed_qty) * $nights,
+                    'unit_price' => $extrabed->default_price,
+                ];
+            }
+        }
+
         try {
             $reservation = ReservationService::createReservation([
                 'room_type_id' => $this->room_type_id,
@@ -408,6 +500,8 @@ class PublicBookingEngine extends Component
                 'check_out_date' => $this->check_out_date,
                 'adults' => $this->adults,
                 'children' => $this->children,
+                'include_breakfast' => $this->include_breakfast,
+                'addon_items' => $addonItems,
                 'customer_name' => $this->guest_name,
                 'customer_phone' => $this->guest_phone,
                 'customer_identity_type' => 'KTP',
@@ -436,6 +530,10 @@ class PublicBookingEngine extends Component
         $this->showSearchResultsModal = false;
         $this->modalStep = 1;
         $this->selectedRoomTypeId = null;
+        $this->include_breakfast = true;
+        $this->selected_extrabed_service_id = null;
+        $this->extrabed_qty = 1;
+        $this->pricingCache = [];
     }
 
     public function getCuratedReviewsProperty(): array

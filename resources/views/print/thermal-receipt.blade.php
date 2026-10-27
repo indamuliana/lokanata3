@@ -137,7 +137,7 @@
             <tr>
                 <td>
                     {{ $reservation->roomType->name }}<br>
-                    <span style="font-size: 9px;">({{ $reservation->nights_count }} Malam)</span>
+                    <span style="font-size: 9px;">({{ $reservation->nights_count }} Malam · {{ $reservation->include_breakfast ? 'Dgn Sarapan' : 'Tanpa Sarapan' }})</span>
                     @if($reservation->allocatedRooms->isNotEmpty())
                         <br><span style="font-size: 9px;">Kamar: {{ $reservation->allocatedRooms->pluck('room.room_number')->join(', ') }}</span>
                     @endif

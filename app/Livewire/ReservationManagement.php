@@ -78,6 +78,7 @@ class ReservationManagement extends Component
     public string $ota_settlement_status = 'pending';
 
     // Pricing, Custom Night Rate & Tax Checkbox
+    public bool $include_breakfast = true;
     public ?int $custom_night_rate = 0;
     public bool $apply_tax = true;
     public string $promo_code = '';
@@ -96,6 +97,7 @@ class ReservationManagement extends Component
 
     // --- FORM EDIT RESERVASI ---
     public ?int $editingReservationId = null;
+    public bool $edit_include_breakfast = true;
     public string $edit_customer_name = '';
     public string $edit_customer_phone = '';
     public string $edit_customer_identity_type = 'KTP';
@@ -250,7 +252,8 @@ class ReservationManagement extends Component
                 $this->extra_guests,
                 $customRate,
                 $this->apply_tax,
-                $addonTotal
+                $addonTotal,
+                $this->include_breakfast
             );
         }
     }
@@ -383,6 +386,7 @@ class ReservationManagement extends Component
                 'children' => $this->children,
                 'infants' => $this->infants,
                 'extra_guests' => $this->extra_guests,
+                'include_breakfast' => $this->include_breakfast,
                 'promo_code' => $this->promo_code,
                 'manual_discount' => $this->manual_discount,
                 'custom_rate_per_night' => $this->custom_night_rate > 0 ? $this->custom_night_rate : null,
@@ -431,6 +435,7 @@ class ReservationManagement extends Component
         $this->edit_adults = $res->adults;
         $this->edit_children = $res->children;
         $this->edit_infants = $res->infants;
+        $this->edit_include_breakfast = (bool) ($res->include_breakfast ?? true);
 
         $nights = max(1, $res->check_in_date->diffInDays($res->check_out_date));
         $this->edit_custom_night_rate = (int) round($res->subtotal / $nights);
@@ -492,7 +497,8 @@ class ReservationManagement extends Component
                 0,
                 $customRate,
                 $this->edit_apply_tax,
-                $addonTotal
+                $addonTotal,
+                $this->edit_include_breakfast
             );
         }
     }
@@ -539,6 +545,7 @@ class ReservationManagement extends Component
                 'adults' => $this->edit_adults,
                 'children' => $this->edit_children,
                 'infants' => $this->edit_infants,
+                'include_breakfast' => $this->edit_include_breakfast,
                 'custom_rate_per_night' => $this->edit_custom_night_rate > 0 ? $this->edit_custom_night_rate : null,
                 'apply_tax' => $this->edit_apply_tax,
                 'manual_discount' => $this->edit_manual_discount,

@@ -29,6 +29,7 @@ class Reservation extends Model
         'adults',
         'children',
         'infants',
+        'include_breakfast',
         'status',
         'subtotal',
         'discount_amount',
@@ -56,6 +57,7 @@ class Reservation extends Model
         'adults' => 'integer',
         'children' => 'integer',
         'infants' => 'integer',
+        'include_breakfast' => 'boolean',
     ];
 
     public function customer(): BelongsTo

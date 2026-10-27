@@ -252,6 +252,7 @@ class ReservationPhaseTest extends TestCase
     public function test_ota_commission_and_gross_amount_calculation_in_livewire(): void
     {
         $user = User::factory()->create();
+        $user->assignRole('Manager');
 
         Livewire::actingAs($user)
             ->test(ReservationManagement::class)
@@ -267,6 +268,7 @@ class ReservationPhaseTest extends TestCase
     public function test_master_addon_management_and_soft_delete_in_livewire(): void
     {
         $user = User::factory()->create();
+        $user->assignRole('Manager');
 
         $comp = Livewire::actingAs($user)
             ->test(ReservationManagement::class)
@@ -299,6 +301,7 @@ class ReservationPhaseTest extends TestCase
     public function test_edit_reservation_lifecycle_in_livewire(): void
     {
         $user = User::factory()->create();
+        $user->assignRole('Manager');
         $stdType = RoomType::where('code', 'STD')->first();
 
         $res = ReservationService::createReservation([

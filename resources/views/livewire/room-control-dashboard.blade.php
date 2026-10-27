@@ -87,10 +87,15 @@
                         @endphp
                         <div class="bg-white rounded-lg p-2.5 border border-amber-200/90 shadow-2xs flex items-center justify-between gap-2.5 hover:border-amber-400 transition">
                             <div class="min-w-0 flex-1 space-y-0.5">
-                                <div class="flex items-center gap-1.5">
+                                <div class="flex items-center gap-1.5 flex-wrap">
                                     <span class="text-xs font-bold text-gray-900 truncate">{{ $unalloc->customer->name }}</span>
                                     @if($unalloc->source === 'website')
                                         <span class="px-1 py-0.2 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-100 shrink-0">Web</span>
+                                    @endif
+                                    @if($unalloc->include_breakfast)
+                                        <span class="px-1 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0" title="Termasuk Sarapan">🍳 Sarapan</span>
+                                    @else
+                                        <span class="px-1 py-0.2 rounded text-[9px] font-medium bg-gray-100 text-gray-600 border border-gray-200 shrink-0" title="Tanpa Sarapan">☕ Room Only</span>
                                     @endif
                                 </div>
                                 <div class="text-[11px] text-gray-600 truncate flex items-center gap-1.5">
@@ -257,13 +262,18 @@
                                 @endphp
                                 <div class="bg-white p-2.5 rounded-lg border {{ $hasRoom ? 'border-blue-100' : 'border-amber-300 bg-amber-50/40' }} flex items-center justify-between shadow-2xs gap-2">
                                     <div class="min-w-0">
-                                        <div class="flex items-center gap-1.5">
+                                        <div class="flex items-center gap-1.5 flex-wrap">
                                             <span class="font-bold text-gray-900 truncate">{{ $cin->customer->name }}</span>
                                             @if(!$hasRoom)
                                                 <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-200">Plot Kamar Dulu</span>
                                             @endif
                                             @if($cin->source === 'website')
                                                 <span class="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-blue-100 text-blue-800">Web</span>
+                                            @endif
+                                            @if($cin->include_breakfast)
+                                                <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">🍳 Sarapan</span>
+                                            @else
+                                                <span class="px-1.5 py-0.2 rounded text-[9px] font-medium bg-gray-100 text-gray-600">☕ Room Only</span>
                                             @endif
                                         </div>
                                         <div class="text-[11px] text-gray-500 truncate">
@@ -497,13 +507,27 @@
                         <!-- Detail Okupansi Tamu Super Compact -->
                         <div class="mt-2 py-1.5 px-2 bg-white/90 backdrop-blur-xs rounded-lg border border-gray-200/60 text-xs shadow-2xs">
                             @if($isOccupied && $res)
-                                <div class="font-bold text-gray-900 truncate leading-tight">{{ $res->customer->name }}</div>
+                                <div class="flex items-center justify-between gap-1">
+                                    <span class="font-bold text-gray-900 truncate leading-tight">{{ $res->customer->name }}</span>
+                                    @if($res->include_breakfast)
+                                        <span class="text-[9px] px-1 py-0.2 rounded font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0" title="Termasuk Sarapan">🍽️ Sarapan</span>
+                                    @else
+                                        <span class="text-[9px] px-1 py-0.2 rounded font-medium bg-gray-100 text-gray-600 shrink-0" title="Tanpa Sarapan (Room Only)">☕ Room Only</span>
+                                    @endif
+                                </div>
                                 <div class="text-[10px] text-gray-600 mt-0.5 truncate">
                                     Out: <span class="font-bold text-gray-800">{{ $res->check_out_date->format('d M') }}</span> ({{ $res->nights_count }} Mlm)
                                 </div>
                             @elseif($item['checkInTodayReservation'])
-                                <div class="text-amber-900 font-bold text-[11px] truncate leading-tight">
-                                    Akan Tiba: {{ $item['checkInTodayReservation']->customer->name }}
+                                <div class="flex items-center justify-between gap-1">
+                                    <span class="text-amber-900 font-bold text-[11px] truncate leading-tight">
+                                        Akan Tiba: {{ $item['checkInTodayReservation']->customer->name }}
+                                    </span>
+                                    @if($item['checkInTodayReservation']->include_breakfast)
+                                        <span class="text-[9px] px-1 py-0.2 rounded font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0" title="Termasuk Sarapan">🍽️ Sarapan</span>
+                                    @else
+                                        <span class="text-[9px] px-1 py-0.2 rounded font-medium bg-gray-100 text-gray-600 shrink-0" title="Tanpa Sarapan (Room Only)">☕ Room Only</span>
+                                    @endif
                                 </div>
                                 <div class="text-[10px] text-gray-600 mt-0.5 truncate flex items-center justify-between">
                                     <span class="text-blue-700 font-semibold">🕒 {{ $item['checkInTodayReservation']->check_in_time ?? '14:00' }}</span>
@@ -797,6 +821,13 @@
                                     ({{ $detailReservation->ota_name }})
                                 @endif
                             </div>
+                            <div class="pt-1 flex items-center gap-1.5">
+                                @if($detailReservation->include_breakfast)
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">🍳 Termasuk Sarapan</span>
+                                @else
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200">☕ Tanpa Sarapan (Room Only)</span>
+                                @endif
+                            </div>
                         </div>
 
                         <div class="p-3 bg-white border border-gray-200 rounded-xl space-y-1.5">
@@ -934,8 +965,11 @@
                                     <span class="font-semibold text-gray-900">{{ $plotReservation->customer->name }}</span> ({{ $plotReservation->customer->phone }})
                                 </div>
                                 <div>
-                                    <span class="text-gray-400 block text-[10px]">Sumber:</span>
+                                    <span class="text-gray-400 block text-[10px]">Sumber & Paket:</span>
                                     <span class="font-semibold text-gray-900">{{ ucfirst($plotReservation->source) }}</span>
+                                    <span class="text-[10px] font-bold block {{ $plotReservation->include_breakfast ? 'text-amber-700' : 'text-gray-500' }}">
+                                        {{ $plotReservation->include_breakfast ? '🍳 Dgn Sarapan' : '☕ Room Only' }}
+                                    </span>
                                 </div>
                                 <div>
                                     <span class="text-gray-400 block text-[10px]">Jadwal Menginap:</span>

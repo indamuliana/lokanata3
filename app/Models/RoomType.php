@@ -19,7 +19,9 @@ class RoomType extends Model
         'standard_capacity',
         'max_capacity',
         'base_price',
+        'price_without_breakfast',
         'high_season_price',
+        'high_season_price_without_breakfast',
         'extra_person_fee',
         'photo_path',
         'photos',
@@ -31,7 +33,9 @@ class RoomType extends Model
         'facilities' => 'array',
         'photos' => 'array',
         'base_price' => 'integer',
+        'price_without_breakfast' => 'integer',
         'high_season_price' => 'integer',
+        'high_season_price_without_breakfast' => 'integer',
         'extra_person_fee' => 'integer',
         'standard_capacity' => 'integer',
         'max_capacity' => 'integer',
@@ -50,6 +54,20 @@ class RoomType extends Model
             return $this->photos;
         }
         return $this->photo_path ? [$this->photo_path] : [];
+    }
+
+    public function getPriceWithoutBreakfastAttribute(?int $value): int
+    {
+        return $value !== null && $value > 0 ? $value : max(0, (int) $this->base_price - 40000);
+    }
+
+    public function getHighSeasonPriceWithoutBreakfastAttribute(?int $value): int
+    {
+        if ($value !== null && $value > 0) {
+            return $value;
+        }
+        $high = $this->high_season_price ?: $this->base_price;
+        return max(0, (int) $high - 40000);
     }
 
     public function getStructuredFacilitiesAttribute(): array

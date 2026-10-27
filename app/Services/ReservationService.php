@@ -131,6 +131,7 @@ class ReservationService
 
             $source = $data['source'] ?? 'walk_in';
             $applyTax = isset($data['apply_tax']) ? (bool) $data['apply_tax'] : true;
+            $includeBreakfast = isset($data['include_breakfast']) ? (bool) $data['include_breakfast'] : true;
             $customRate = isset($data['custom_rate_per_night']) && (int) $data['custom_rate_per_night'] > 0 ? (int) $data['custom_rate_per_night'] : null;
 
             if ($source === 'ota_manual' && !empty($data['ota_gross_amount']) && (int) $data['ota_gross_amount'] > 0) {
@@ -155,7 +156,8 @@ class ReservationService
                     $data['extra_guests'] ?? 0,
                     $customRate,
                     $applyTax,
-                    $addonTotal
+                    $addonTotal,
+                    $includeBreakfast
                 );
                 $subtotal = $breakdown['subtotal'];
                 $discountAmount = $breakdown['discount_amount'];
@@ -196,6 +198,7 @@ class ReservationService
                 'adults' => $data['adults'] ?? 1,
                 'children' => $data['children'] ?? 0,
                 'infants' => $data['infants'] ?? 0,
+                'include_breakfast' => $includeBreakfast,
                 'status' => $status,
                 'subtotal' => $subtotal,
                 'discount_amount' => $discountAmount,
@@ -279,6 +282,7 @@ class ReservationService
             $source = $data['source'] ?? $reservation->source;
             $applyTax = isset($data['apply_tax']) ? (bool) $data['apply_tax'] : true;
             $customRate = isset($data['custom_rate_per_night']) && (int) $data['custom_rate_per_night'] > 0 ? (int) $data['custom_rate_per_night'] : null;
+            $includeBreakfast = isset($data['include_breakfast']) ? (bool) $data['include_breakfast'] : (bool) ($reservation->include_breakfast ?? true);
 
             if ($source === 'ota_manual' && !empty($data['ota_gross_amount']) && (int) $data['ota_gross_amount'] > 0) {
                 $gross = (int) $data['ota_gross_amount'];
@@ -301,7 +305,8 @@ class ReservationService
                     $data['extra_guests'] ?? 0,
                     $customRate,
                     $applyTax,
-                    $addonTotal
+                    $addonTotal,
+                    $includeBreakfast
                 );
                 $subtotal = $breakdown['subtotal'];
                 $taxAmount = $breakdown['tax_amount'];
@@ -321,6 +326,7 @@ class ReservationService
                 'adults' => $data['adults'] ?? $reservation->adults,
                 'children' => $data['children'] ?? $reservation->children,
                 'infants' => $data['infants'] ?? $reservation->infants,
+                'include_breakfast' => $includeBreakfast,
                 'subtotal' => $subtotal,
                 'tax_amount' => $taxAmount,
                 'service_charge_amount' => $serviceChargeAmount,

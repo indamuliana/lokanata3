@@ -83,6 +83,7 @@
                     @if($reservation->allocatedRooms->isNotEmpty())
                         (Kamar No: {{ $reservation->allocatedRooms->pluck('room.room_number')->join(', ') }})
                     @endif
+                    <br><small style="color: #555;">Paket: {{ $reservation->include_breakfast ? 'Termasuk Sarapan' : 'Tanpa Sarapan (Room Only)' }}</small>
                 </td>
                 <td class="text-right">{{ $reservation->nights_count }} Malam</td>
                 <td class="text-right">{{ rupiah($reservation->subtotal / $reservation->nights_count) }}</td>
